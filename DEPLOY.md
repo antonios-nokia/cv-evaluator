@@ -1,56 +1,63 @@
-# CV Evaluator — Deployment Guide
+# CV Evaluator — Deployment
 
-## Files
-
-- **`docker-compose.hub.yml`** — uses `antoniosdim/cv-backend` and `antoniosdim/cv-frontend` from Docker Hub, no build needed
-- **`.env.ollama.example`** — copy to `.env` for local Ollama setup
-- **`.env.openrouter.example`** — copy to `.env` for OpenRouter (coming soon)
-
-## Prerequisites
+## Requirements
 
 - Docker + Docker Compose
-- **Ollama** running on the host with `llama3.2` pulled:
-  ```bash
-  ollama serve
-  ollama pull llama3.2
-  ```
-
-## Deploy
-
-All three files must be in the same folder:
+- The three files below in the same folder:
 
 ```
 your-folder/
 ├── docker-compose.hub.yml
-├── .env                ← copied and filled from one of the examples below
+├── .env.ollama.example
+└── .env.openrouter.example
 ```
 
-**Step 1 — Choose your LLM provider and create `.env`:**
+---
+
+## Option A — Ollama (local, no API key)
+
+Requires Ollama running on the host with `llama3.2` pulled:
 
 ```bash
-# Option A: Ollama (local, no API key needed)
-cp .env.ollama.example .env
-
-# Option B: OpenRouter (cloud, requires API key)
-cp .env.openrouter.example .env
-# then edit .env and set your OPENROUTER_API_KEY
+ollama serve
+ollama pull llama3.2
 ```
 
-**Step 2 — Pull and start:**
+Copy the example and leave all values as-is:
+
+```bash
+cp .env.ollama.example .env
+```
+
+---
+
+## Option B — OpenRouter (cloud, API key required)
+
+No Ollama needed. Get your API key at https://openrouter.ai/keys
+
+```bash
+cp .env.openrouter.example .env
+```
+
+Then open `.env` and replace the placeholder with your real key:
+
+```
+OPENROUTER_API_KEY=sk-or-v1-your-actual-key-here
+```
+
+Optionally change the model (browse models at https://openrouter.ai/models):
+
+```
+OPENROUTER_MODEL=anthropic/claude-3-5-sonnet
+```
+
+---
+
+## Start
 
 ```bash
 docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-**Step 3 — Open the app:**
-
-```
-http://localhost:5173
-```
-
-## Notes
-
-- `.env` must be in the same directory as `docker-compose.hub.yml` — Docker Compose picks it up automatically
-- No source code, Python, or Node.js needed on the host
-- Session data is kept in memory with a 1-hour TTL (configurable via `SESSION_TTL_SECONDS`)
+Open the app at **http://localhost:5173**
