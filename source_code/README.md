@@ -1,7 +1,6 @@
-# Source Code — Rebuild & Deploy Guide
+# Source Code
 
-Use this directory when you need to modify the code and redeploy.
-It has its own `docker-compose.yml` that builds both images locally from source.
+Use this directory to make changes to the app and test locally before publishing new images to Docker Hub.
 
 ---
 
@@ -9,7 +8,7 @@ It has its own `docker-compose.yml` that builds both images locally from source.
 
 ```
 source_code/
-├── docker-compose.yml        ← builds backend and frontend from source
+├── docker-compose.yml        ← builds and runs the app locally from source
 ├── backend/                  ← full Python source, fully editable
 │   ├── Dockerfile
 │   ├── entrypoint.sh
@@ -23,35 +22,30 @@ source_code/
 │       └── services/         ← AI logic (evaluator, improver, rewriter...)
 └── frontend_dist/            ← compiled JS/CSS/HTML + nginx config
     ├── Dockerfile
-    ├── nginx.conf            ← editable
-    └── assets/
+    └── nginx.conf            ← editable (routing, headers, ports)
 ```
 
-> **Frontend note:** Only the compiled output is here, not the original TypeScript/React source.
-> You can edit `nginx.conf` (routing, headers, ports). The JS/CSS files are minified and not editable.
+> **Frontend note:** Only the compiled output is available here, not the original TypeScript/React source.
+> The only frontend file you can edit directly is `nginx.conf`.
 
 ---
 
-## Prerequisites
+## Step 1 — Set up `.env` (once)
 
-- Docker + Docker Compose
-- Ollama running on the host:
-  ```bash
-  ollama serve
-  ollama pull llama3.2
-  ```
-- A `.env` file in this (`source_code/`) directory — copy from the root examples:
-  ```bash
-  cp ../.env.ollama.example .env        # Ollama
-  # or
-  cp ../.env.openrouter.example .env    # OpenRouter (fill in your API key)
-  ```
+```bash
+cp ../.env.ollama.example .env
+```
+
+Or for OpenRouter:
+
+```bash
+cp ../.env.openrouter.example .env
+# then open .env and fill in your OPENROUTER_API_KEY
+```
 
 ---
 
-## Step 1 — Edit the code
-
-**Backend** — edit any file under `backend/app/`:
+## Step 2 — Edit the backend code
 
 | File | Purpose |
 |---|---|
@@ -63,11 +57,9 @@ source_code/
 | `backend/app/session_store.py` | Session data model |
 | `backend/requirements.txt` | Python dependencies |
 
-**Frontend** — only `frontend_dist/nginx.conf` is editable here.
-
 ---
 
-## Step 2 — Build and run locally from source
+## Step 3 — Build and run locally
 
 ```bash
 cd source_code
@@ -76,11 +68,11 @@ docker compose up --build
 
 Open the app at **http://localhost:5173**
 
+Repeat steps 2 and 3 for every change.
+
 ---
 
-## Step 3 — Push new images to Docker Hub (optional)
-
-Once satisfied with your changes, push the new images so others can deploy them via `docker-compose.hub.yml`:
+## Step 4 — Push to Docker Hub when ready
 
 ```bash
 docker login -u antoniosdim
@@ -92,16 +84,4 @@ docker push antoniosdim/cv-backend:latest
 docker push antoniosdim/cv-frontend:latest
 ```
 
-Others can then pull and run the updated images using the root `docker-compose.hub.yml` as usual.
-
----
-
-## Quick reference
-
-| Task | Command |
-|---|---|
-| Build and start from source | `cd source_code && docker compose up --build` |
-| Stop | `docker compose down` |
-| View logs | `docker compose logs -f` |
-| Push backend to Docker Hub | `docker tag cv-backend antoniosdim/cv-backend:latest && docker push antoniosdim/cv-backend:latest` |
-| Push frontend to Docker Hub | `docker tag cv-frontend antoniosdim/cv-frontend:latest && docker push antoniosdim/cv-frontend:latest` |
+Others can then deploy the updated images using `docker-compose.hub.yml` from the repo root.
