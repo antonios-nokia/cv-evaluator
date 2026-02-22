@@ -1,0 +1,35 @@
+services:
+  backend:
+    image: antoniosdim/cv-backend:latest
+    container_name: cv-backend
+    env_file: .env
+    extra_hosts:
+      - "host-gateway:host-gateway"
+    volumes:
+      - generated_docs:/tmp/cv_docs
+    networks:
+      - cv-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    image: antoniosdim/cv-frontend:latest
+    container_name: cv-frontend
+    ports:
+      - "5173:80"
+    networks:
+      - cv-net
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  generated_docs:
+
+networks:
+  cv-net:
+    driver: bridge
