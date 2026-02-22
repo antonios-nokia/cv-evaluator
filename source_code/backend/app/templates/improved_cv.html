@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    @page { margin: 2cm; }
+    body {
+      font-family: "Liberation Serif", Georgia, serif;
+      font-size: 11pt;
+      line-height: 1.5;
+      color: #1a1a1a;
+    }
+    h1 { font-size: 20pt; margin-bottom: 2px; color: #1e3a5f; }
+    h2 { font-size: 13pt; border-bottom: 1px solid #1e3a5f; padding-bottom: 3px;
+         margin-top: 18px; color: #1e3a5f; }
+    h3 { font-size: 11pt; margin-bottom: 2px; }
+    p { margin: 4px 0; }
+    ul { margin: 4px 0 4px 20px; padding: 0; }
+    li { margin-bottom: 2px; }
+    strong { font-weight: bold; }
+  </style>
+</head>
+<body>
+  {{ content | safe }}
+</body>
+</html>
