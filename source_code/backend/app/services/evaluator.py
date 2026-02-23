@@ -11,34 +11,39 @@ EVAL_SYSTEM = (
     "You always respond with valid JSON only — no markdown, no extra commentary."
 )
 
-EVAL_PROMPT_TEMPLATE = """Evaluate the following CV against the job description below.
+EVAL_PROMPT_TEMPLATE = """Evaluate the candidate CV against the job description below.
 
-CV:
+<cv>
 {cv_text}
+</cv>
 
----
-
-Job Description:
+<job_description>
 {job_description}
+</job_description>
 
----
+TASK — two steps:
 
-Return ONLY a valid JSON object with this exact structure:
+Step 1: Read ONLY <job_description>. Write down every skill, technology, tool, and certification it requires or prefers. Call this list REQUIRED (aim for 8-15 items, each 1-4 words).
+
+Step 2: For each item in REQUIRED, check whether it is explicitly named in <cv>.
+  - If yes → put it in "strengths"
+  - If no  → put it in "gaps"
+
+IMPORTANT RULES:
+- strengths and gaps must contain only items from REQUIRED (Step 1). Never put CV-only skills in either list.
+- A skill goes in strengths only if that exact term (or a clear synonym) appears in the <cv> text.
+- Do not infer. "OpenShift" does not prove "GCP". "Network automation" does not prove "Python".
+- Return concise skill names (1-4 words), not full sentences.
+
+Return ONLY this JSON object — no other text:
 {{
-  "score": <integer 0-100>,
-  "strengths": [<string>, ...],
-  "gaps": [<string>, ...],
-  "summary": "<2-3 sentence overall summary>"
+  "strengths": [<items from REQUIRED that appear in cv>],
+  "gaps": [<items from REQUIRED that do NOT appear in cv>],
+  "summary": "<2-3 sentence overall assessment, single line, no newlines>"
 }}
 
-Rules:
-- score: overall fit percentage (0 = no fit, 100 = perfect fit)
-- strengths: 3-6 specific matching qualifications/skills
-- gaps: 3-6 specific missing or weak areas versus the job requirements
-- summary: concise narrative of the candidate's fit
-- All string values must be on a single line (no newlines inside strings)
-
-Respond with the JSON object only."""
+- strengths = [] when the CV contains none of the job requirements.
+- strengths + gaps must together contain all REQUIRED items."""
 
 
 def _strip_markdown_fences(text: str) -> str:
@@ -174,9 +179,37 @@ async def evaluate_cv(cv_text: str, job_description: str) -> dict:
     raw = await ollama_client.complete(prompt, system=EVAL_SYSTEM)
     result = _parse_eval_json(raw)
 
-    # Coerce types for safety
-    result["score"] = max(0, min(100, int(result.get("score", 0))))
-    result["strengths"] = list(result.get("strengths", []))
-    result["gaps"] = list(result.get("gaps", []))
-    result["summary"] = str(result.get("summary", ""))
-    return result
+    # Normalize to expected output shape
+    raw_strengths = list(result.get("strengths", []))
+    gaps = list(result.get("gaps", []))
+
+    # Verify each claimed strength actually appears in the CV text.
+    # This catches hallucinations where the model claims a skill is present but it isn't.
+    cv_lower = cv_text.lower()
+    verified_strengths = []
+    for skill in raw_strengths:
+        # Extract meaningful tokens (3+ chars, skip common words)
+        tokens = [t.lower() for t in re.split(r"[\s/,\-]+", skill) if len(t) >= 3]
+        # A strength is valid if at least one of its key tokens appears literally in the CV
+        if any(token in cv_lower for token in tokens):
+            verified_strengths.append(skill)
+        else:
+            logger.info("Demoting hallucinated strength '%s' to gaps (not found in CV text).", skill)
+            gaps.append(skill)
+
+    strengths = verified_strengths
+
+    # Compute score in Python — never trust the model's arithmetic.
+    total = len(strengths) + len(gaps)
+    found_count = len(strengths)
+    if total > 0:
+        score = round(found_count / total * 100)
+    else:
+        score = 0
+
+    return {
+        "score": max(0, min(100, score)),
+        "strengths": strengths,
+        "gaps": gaps,
+        "summary": str(result.get("summary", "")),
+    }
